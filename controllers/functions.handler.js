@@ -24,13 +24,21 @@ const channels = [
 
 let emailSubscriptions = null; 
 let emailSubscriptionsLastFetched = 0; 
-let userFetchingStatus = {}; // Inicializar la variable
-let userLastActivity = {}; // Inicializar la variable
-let userHasInteracted = {}; // Para rastrear si el usuario ya ha interactuado
+let userFetchingStatus = {};
+let userLastActivity = {}; 
 
-const getDiamondBlackMembershipStatus = async (email) => {
+const getDiamondBlackMembershipEmails = async () => {
   try {
-    const initialResponse = await WooCommerce.getAsync(`memberships/members?plan=diamond&email=${email.toLowerCase()}`);
+    console.log('Fetching DiamondBlack membership emails...');
+    const now = Date.now();
+    const cacheDuration = 24 * 60 * 60 * 1000; 
+
+    if (emailSubscriptions && (now - emailSubscriptionsLastFetched) < cacheDuration) {
+      console.log('Using cached email subscriptions');
+      return emailSubscriptions;
+    }
+
+    const initialResponse = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=1`);
     const initialResponseBody = initialResponse.toJSON().body;
     const initialData = JSON.parse(initialResponseBody);
 
@@ -38,15 +46,49 @@ const getDiamondBlackMembershipStatus = async (email) => {
       throw new Error('Unexpected response format');
     }
 
-    for (const member of initialData) {
-      if (member.status === 'active') {
-        return true;
-      }
+    let totalPages = 1;
+    if (initialResponse.headers['x-wp-totalpages']) {
+      totalPages = parseInt(initialResponse.headers['x-wp-totalpages']);
     }
-    return false;
+
+    const pagePromises = [];
+    for (let page = 1; page <= totalPages; page++) {
+      pagePromises.push(WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`));
+    }
+
+    const pageResponses = await Promise.all(pagePromises);
+    const allMembers = pageResponses.flatMap(pageResponse => {
+      const pageBody = pageResponse.toJSON().body;
+      return JSON.parse(pageBody);
+    });
+
+    const DiamondBlackEmails = await Promise.all(allMembers.map(async (member) => {
+      try {
+        const customerResponse = await WooCommerce.getAsync(`customers/${member.customer_id}`);
+        const customerResponseBody = customerResponse.toJSON().body;
+
+        if (customerResponse.headers['content-type'].includes('application/json')) {
+          const customerData = JSON.parse(customerResponseBody);
+          if (member.status === 'active') {
+            return customerData.email.toLowerCase();
+          }
+        } else {
+          return null;
+        }
+      } catch (error) {
+        return null;
+      }
+    }));
+
+    const validEmails = DiamondBlackEmails.filter(email => email !== null);
+
+    emailSubscriptions = validEmails;
+    emailSubscriptionsLastFetched = now;
+
+    return validEmails;
   } catch (error) {
-    console.error('Error al obtener el estado de la membresía DiamondBlack:', error);
-    return false;
+    console.error('Error al obtener los correos de membresía DiamondBlack:', error);
+    return [];
   }
 };
 
@@ -57,7 +99,8 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
       return;
     }
 
-    const hasDiamondBlackMembership = await getDiamondBlackMembershipStatus(email);
+    const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
+    const hasDiamondBlackMembership = DiamondBlackEmails.includes(email.toLowerCase());
 
     if (!hasDiamondBlackMembership) {
       await bot.sendMessage(chatId, `No tienes una suscripción actualmente activa con la membresía "DiamondBlack".`);
@@ -133,11 +176,6 @@ const WelcomeUser = () => {
 
     const text = msg.text.trim().toLowerCase();
 
-    if (!userHasInteracted[chatId]) {
-      userHasInteracted[chatId] = true;
-      await bot.sendMessage(chatId, '¡Bienvenido! Por favor, espera mientras verificamos tu membresía...');
-    }
-
     const now = Date.now();
     const lastActivity = userLastActivity[chatId] || 0;
     const inactivityTime = now - lastActivity;
@@ -154,15 +192,31 @@ const WelcomeUser = () => {
       return;
     }
 
-    userFetchingStatus[chatId] = true;
-    await bot.sendMessage(chatId, 'Verificando tu membresía, por favor espera...');
+    if (emailSubscriptions) {
+      try {
+        await verifyAndSaveEmail(chatId, text, bot);
+      } catch (error) {
+        console.error(`Error verifying email for ${chatId}:`, error);
+      }
+      return;
+    }
 
-    try {
-      await verifyAndSaveEmail(chatId, text, bot);
-    } catch (error) {
-      console.error(`Error verifying email for ${chatId}:`, error);
-    } finally {
-      userFetchingStatus[chatId] = false;
+    if (!userFetchingStatus[chatId]) {
+      userFetchingStatus[chatId] = true;
+      await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
+
+      try {
+        const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
+        userFetchingStatus[chatId] = false;
+
+        emailSubscriptions = DiamondBlackEmails;
+        await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
+      } catch (err) {
+        userFetchingStatus[chatId] = false;
+        await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiendome.');
+      }
+    } else {
+      await bot.sendMessage(chatId, 'Ya se han obtenido los correos con membresía "DiamondBlack". Escribe el correo con el que compraste en Sharpods.');
     }
   });
 };
