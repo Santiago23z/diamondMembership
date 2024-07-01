@@ -26,7 +26,6 @@ let emailSubscriptions = null;
 let emailSubscriptionsLastFetched = 0; 
 let userFetchingStatus = {};
 let userLastActivity = {}; 
-let userHasInteracted = {}; // Variable para rastrear si el usuario ya ha interactuado
 
 const getDiamondBlackMembershipEmails = async () => {
   try {
@@ -176,21 +175,6 @@ const WelcomeUser = () => {
     }
 
     const text = msg.text.trim().toLowerCase();
-
-    // Si el usuario nunca ha interactuado antes
-    if (!userHasInteracted[chatId]) {
-      userHasInteracted[chatId] = true;
-      userFetchingStatus[chatId] = true;
-      await bot.sendMessage(chatId, '¡Bienvenido! Estamos verificando tu membresía, por favor espera...');
-      try {
-        await verifyAndSaveEmail(chatId, text, bot);
-      } catch (error) {
-        console.error(`Error verifying email for ${chatId}:`, error);
-      } finally {
-        userFetchingStatus[chatId] = false;
-      }
-      return;
-    }
 
     const now = Date.now();
     const lastActivity = userLastActivity[chatId] || 0;
