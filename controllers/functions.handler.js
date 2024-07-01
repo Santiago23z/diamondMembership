@@ -69,7 +69,9 @@ const getDiamondBlackMembershipEmails = async () => {
 
         if (customerResponse.headers['content-type'].includes('application/json')) {
           const customerData = JSON.parse(customerResponseBody);
-          return customerData.email.toLowerCase();
+          if (member.status === 'active') {
+            return customerData.email.toLowerCase();
+          }
         } else {
           return null;
         }
@@ -238,7 +240,6 @@ const KickChatMember = (userId) => {
       .catch(err => console.log(`Error to kick user ${err}`));
   }
 };
-
 
 module.exports = {
   WelcomeUser,
