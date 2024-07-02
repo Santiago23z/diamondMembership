@@ -15,10 +15,11 @@ const WooCommerce = new WooCommerceAPI({
   queryStringAuth: true
 });
 
-const youtubeLinks = [
-  { text: 'Mi cuenta sharpods', url: 'https://wwww.sharpods.com/mi-cuenta' },
-  { text: 'Mis comisiones', url: 'https://sharpods.com/mi-cuenta/afwc-dashboard/' },
-  { text: 'Mis accesos miembro', url: 'https://sharpods.com/mi-cuenta/downloads/' },
+const channels = [
+  { id: '-1002007887417', name: 'Sharpods Club 💎 💎' },
+  { id: '-1001679093288', name: 'Bot de goles Bet Live 💎' },
+  { id: '-1001538116034', name: 'Bot de itinerarios Bet Live 💎' },
+  { id: '-1001587405522', name: 'Bot de corners Bet Live' }
 ];
 
 let emailSubscriptions = null; 
@@ -37,7 +38,7 @@ const getDiamondBlackMembershipEmails = async () => {
       return emailSubscriptions;
     }
 
-    const initialResponse = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=1`);
+    const initialResponse = await WooCommerce.getAsync(memberships/members?plan=diamond&page=1);
     const initialResponseBody = initialResponse.toJSON().body;
     const initialData = JSON.parse(initialResponseBody);
 
@@ -52,7 +53,7 @@ const getDiamondBlackMembershipEmails = async () => {
 
     const pagePromises = [];
     for (let page = 1; page <= totalPages; page++) {
-      pagePromises.push(WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`));
+      pagePromises.push(WooCommerce.getAsync(memberships/members?plan=diamond&page=${page}));
     }
 
     const pageResponses = await Promise.all(pagePromises);
@@ -63,7 +64,7 @@ const getDiamondBlackMembershipEmails = async () => {
 
     const DiamondBlackEmails = await Promise.all(allMembers.map(async (member) => {
       try {
-        const customerResponse = await WooCommerce.getAsync(`customers/${member.customer_id}`);
+        const customerResponse = await WooCommerce.getAsync(customers/${member.customer_id});
         const customerResponseBody = customerResponse.toJSON().body;
 
         if (customerResponse.headers['content-type'].includes('application/json')) {
@@ -94,7 +95,7 @@ const getDiamondBlackMembershipEmails = async () => {
 const verifyAndSaveEmail = async (chatId, email, bot) => {
   try {
     if (await isEmailUsed(email)) {
-      await bot.sendMessage(chatId, `El correo ${email} ya ha sido utilizado.`);
+      await bot.sendMessage(chatId, El correo ${email} ya ha sido utilizado.);
       return;
     }
 
@@ -102,12 +103,17 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
     const hasDiamondBlackMembership = DiamondBlackEmails.includes(email.toLowerCase());
 
     if (!hasDiamondBlackMembership) {
-      await bot.sendMessage(chatId, `No tienes una suscripción actualmente activa con la membresía "DiamondBlack".`);
+      await bot.sendMessage(chatId, No tienes una suscripción actualmente activa con la membresía "DiamondBlack".);
       return;
     }
 
+    const inviteLinks = await Promise.all(channels.map(async (channel) => {
+      const link = await createInviteLink(channel.id);
+      return { text: channel.name, url: link || 'https://example.com/invalid-link' };
+    }));
+
     const buttonsLinks = {
-      inline_keyboard: youtubeLinks.map(link => [{ text: link.text, url: link.url }])
+      inline_keyboard: inviteLinks.map(link => [{ text: link.text, url: link.url }])
     };
 
     const options = {
@@ -118,7 +124,7 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
 
     await saveUsedEmail(email);
   } catch (error) {
-    console.error(`Error verifying email for ${chatId}:`, error);
+    console.error(Error verifying email for ${chatId}:, error);
     await bot.sendMessage(chatId, 'Ocurrió un error al verificar el correo. Inténtalo de nuevo más tarde.');
   }
 };
@@ -128,7 +134,7 @@ const saveUsedEmail = async (email) => {
     const usedEmail = new UsedEmail({ email });
     await usedEmail.save();
   } catch (error) {
-    console.error(`Error saving used email: ${error}`);
+    console.error(Error saving used email: ${error});
   }
 };
 
@@ -137,8 +143,20 @@ const isEmailUsed = async (email) => {
     const emailDoc = await UsedEmail.findOne({ email });
     return !!emailDoc;
   } catch (error) {
-    console.error(`Error finding used email: ${error}`);
+    console.error(Error finding used email: ${error});
     return false;
+  }
+};
+
+const createInviteLink = async (channelId) => {
+  try {
+    const inviteLink = await bot.createChatInviteLink(channelId, {
+      member_limit: 1, 
+    });
+    return inviteLink.invite_link;
+  } catch (error) {
+    console.error('Error al crear el enlace de invitación:', error);
+    return null;
   }
 };
 
@@ -178,7 +196,7 @@ const WelcomeUser = () => {
       try {
         await verifyAndSaveEmail(chatId, text, bot);
       } catch (error) {
-        console.error(`Error verifying email for ${chatId}:`, error);
+        console.error(Error verifying email for ${chatId}:, error);
       }
       return;
     }
@@ -207,9 +225,9 @@ const UnbanChatMember = (userId) => {
   for (const channel of channels) {
     bot.unbanChatMember(channel.id, userId)
       .then(() => {
-        console.log(`User unbanned from the channel ${channel.name}`);
+        console.log(User unbanned from the channel ${channel.name});
       })
-      .catch(err => console.log(`Error to unban user ${err}`));
+      .catch(err => console.log(Error to unban user ${err}));
   }
 };
 
@@ -217,9 +235,9 @@ const KickChatMember = (userId) => {
   for (const channel of channels) {
     bot.banChatMember(channel.id, userId)
       .then(() => {
-        console.log(`User kicked from the channel ${channel.name}`);
+        console.log(User kicked from the channel ${channel.name});
       })
-      .catch(err => console.log(`Error to kick user ${err}`));
+      .catch(err => console.log(Error to kick user ${err}));
   }
 };
 
@@ -227,4 +245,4 @@ module.exports = {
   WelcomeUser,
   UnbanChatMember,
   KickChatMember
-};
+}; 
