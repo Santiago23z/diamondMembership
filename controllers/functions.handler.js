@@ -15,7 +15,12 @@ const WooCommerce = new WooCommerceAPI({
   queryStringAuth: true
 });
 
-const youtubeLink = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+const channels = [
+  { id: '-1002007887417', name: 'Sharpods Club 💎 💎' },
+  { id: '-1001679093288', name: 'Bot de goles Bet Live 💎' },
+  { id: '-1001538116034', name: 'Bot de itinerarios Bet Live 💎' },
+  { id: '-1001587405522', name: 'Bot de corners Bet Live' }
+];
 
 let emailSubscriptions = null; 
 let emailSubscriptionsLastFetched = 0; 
@@ -58,19 +63,20 @@ const getDiamondBlackMembershipEmails = async () => {
     });
 
     const DiamondBlackEmails = await Promise.all(allMembers.map(async (member) => {
-      if (member.status !== 'active') return null;
-
       try {
         const customerResponse = await WooCommerce.getAsync(`customers/${member.customer_id}`);
         const customerResponseBody = customerResponse.toJSON().body;
 
         if (customerResponse.headers['content-type'].includes('application/json')) {
           const customerData = JSON.parse(customerResponseBody);
-          return customerData.email.toLowerCase();
+          if (member.status === 'active') {
+            return customerData.email.toLowerCase();
+          }
         } else {
           return null;
         }
       } catch (error) {
+        console.error(`Error fetching customer data for member ${member.customer_id}:`, error);
         return null;
       }
     }));
@@ -98,12 +104,17 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
     const hasDiamondBlackMembership = DiamondBlackEmails.includes(email.toLowerCase());
 
     if (!hasDiamondBlackMembership) {
-      await bot.sendMessage(chatId, `No tienes una suscripción actualmente activa con la membresía "DiamondBlack".`);
+      await bot.sendMessage(chatId, 'No tienes una suscripción actualmente activa con la membresía "DiamondBlack".');
       return;
     }
 
+    const inviteLinks = await Promise.all(channels.map(async (channel) => {
+      const link = await createInviteLink(channel.id);
+      return { text: channel.name, url: link || 'https://example.com/invalid-link' };
+    }));
+
     const buttonsLinks = {
-      inline_keyboard: [[{ text: 'Mira nuestro video en YouTube', url: youtubeLink }]]
+      inline_keyboard: inviteLinks.map(link => [{ text: link.text, url: link.url }])
     };
 
     const options = {
@@ -138,6 +149,18 @@ const isEmailUsed = async (email) => {
   }
 };
 
+const createInviteLink = async (channelId) => {
+  try {
+    const inviteLink = await bot.createChatInviteLink(channelId, {
+      member_limit: 1, 
+    });
+    return inviteLink.invite_link;
+  } catch (error) {
+    console.error('Error al crear el enlace de invitación:', error);
+    return null;
+  }
+};
+
 const WelcomeUser = () => {
   bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -159,7 +182,7 @@ const WelcomeUser = () => {
     const inactivityTime = now - lastActivity;
     const maxInactivityTime = 2 * 60 * 1000; // 2 minutos en milisegundos
 
-    if (inactividadTime > maxInactivityTime) {
+    if (inactivityTime > maxInactivityTime) {
       userFetchingStatus[chatId] = false;
     }
 
@@ -191,7 +214,7 @@ const WelcomeUser = () => {
         await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
       } catch (err) {
         userFetchingStatus[chatId] = false;
-        await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiéndome.');
+        await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiendome.');
       }
     } else {
       await bot.sendMessage(chatId, 'Ya se han obtenido los correos con membresía "DiamondBlack". Escribe el correo con el que compraste en Sharpods.');
@@ -205,7 +228,7 @@ const UnbanChatMember = (userId) => {
       .then(() => {
         console.log(`User unbanned from the channel ${channel.name}`);
       })
-      .catch(err => console.log(`Error to unban user ${err})`));
+      .catch(err => console.log(`Error to unban user ${err}`));
   }
 };
 
