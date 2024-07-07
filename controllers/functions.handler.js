@@ -63,15 +63,15 @@ const getDiamondBlackMembershipEmails = async () => {
     });
 
     const DiamondBlackEmails = await Promise.all(allMembers.map(async (member) => {
+      if (member.status !== 'active') return null;
+
       try {
         const customerResponse = await WooCommerce.getAsync(`customers/${member.customer_id}`);
         const customerResponseBody = customerResponse.toJSON().body;
 
         if (customerResponse.headers['content-type'].includes('application/json')) {
           const customerData = JSON.parse(customerResponseBody);
-          if (member.status === 'active') {
-            return customerData.email.toLowerCase();
-          }
+          return customerData.email.toLowerCase();
         } else {
           return null;
         }
@@ -95,7 +95,7 @@ const getDiamondBlackMembershipEmails = async () => {
 const verifyAndSaveEmail = async (chatId, email, bot) => {
   try {
     if (await isEmailUsed(email)) {
-      await bot.sendMessage(chatId,`El correo ${email} ya ha sido utilizado.`);
+      await bot.sendMessage(chatId, `El correo ${email} ya ha sido utilizado.`);
       return;
     }
 
@@ -181,7 +181,7 @@ const WelcomeUser = () => {
     const inactivityTime = now - lastActivity;
     const maxInactivityTime = 2 * 60 * 1000; // 2 minutos en milisegundos
 
-    if (inactivityTime > maxInactivityTime) {
+    if (inactividadTime > maxInactivityTime) {
       userFetchingStatus[chatId] = false;
     }
 
@@ -213,7 +213,7 @@ const WelcomeUser = () => {
         await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
       } catch (err) {
         userFetchingStatus[chatId] = false;
-        await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiendome.');
+        await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiéndome.');
       }
     } else {
       await bot.sendMessage(chatId, 'Ya se han obtenido los correos con membresía "DiamondBlack". Escribe el correo con el que compraste en Sharpods.');
