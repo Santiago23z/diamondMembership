@@ -15,12 +15,7 @@ const WooCommerce = new WooCommerceAPI({
   queryStringAuth: true
 });
 
-const channels = [
-  { id: '-1002007887417', name: 'Sharpods Club 💎 💎' },
-  { id: '-1001679093288', name: 'Bot de goles Bet Live 💎' },
-  { id: '-1001538116034', name: 'Bot de itinerarios Bet Live 💎' },
-  { id: '-1001587405522', name: 'Bot de corners Bet Live' }
-];
+const youtubeLink = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
 
 let emailSubscriptions = null; 
 let emailSubscriptionsLastFetched = 0; 
@@ -107,13 +102,8 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
       return;
     }
 
-    const inviteLinks = await Promise.all(channels.map(async (channel) => {
-      const link = await createInviteLink(channel.id);
-      return { text: channel.name, url: link || 'https://example.com/invalid-link' };
-    }));
-
     const buttonsLinks = {
-      inline_keyboard: inviteLinks.map(link => [{ text: link.text, url: link.url }])
+      inline_keyboard: [[{ text: 'Mira nuestro video en YouTube', url: youtubeLink }]]
     };
 
     const options = {
@@ -124,7 +114,7 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
 
     await saveUsedEmail(email);
   } catch (error) {
-    console.error(`Error verifying email for ${chatId}:, error`);
+    console.error(`Error verifying email for ${chatId}:`, error);
     await bot.sendMessage(chatId, 'Ocurrió un error al verificar el correo. Inténtalo de nuevo más tarde.');
   }
 };
@@ -145,18 +135,6 @@ const isEmailUsed = async (email) => {
   } catch (error) {
     console.error(`Error finding used email: ${error}`);
     return false;
-  }
-};
-
-const createInviteLink = async (channelId) => {
-  try {
-    const inviteLink = await bot.createChatInviteLink(channelId, {
-      member_limit: 1, 
-    });
-    return inviteLink.invite_link;
-  } catch (error) {
-    console.error('Error al crear el enlace de invitación:', error);
-    return null;
   }
 };
 
@@ -196,7 +174,7 @@ const WelcomeUser = () => {
       try {
         await verifyAndSaveEmail(chatId, text, bot);
       } catch (error) {
-        console.error(`Error verifying email for ${chatId}:, error`);
+        console.error(`Error verifying email for ${chatId}:`, error);
       }
       return;
     }
@@ -245,4 +223,4 @@ module.exports = {
   WelcomeUser,
   UnbanChatMember,
   KickChatMember
-}; 
+};
