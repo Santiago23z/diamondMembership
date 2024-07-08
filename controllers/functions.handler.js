@@ -193,6 +193,15 @@ const WelcomeUser = () => {
       return;
     }
 
+    if (emailSubscriptions && emailSubscriptions.length > 0) {
+      try {
+        await verifyAndSaveEmail(chatId, text, bot);
+      } catch (error) {
+        console.error(`Error verifying email for ${chatId}:`, error);
+      }
+      return;
+    }
+
     userFetchingStatus[chatId] = true;
 
     try {
