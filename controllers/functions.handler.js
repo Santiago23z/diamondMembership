@@ -193,31 +193,19 @@ const WelcomeUser = () => {
       return;
     }
 
-    if (emailSubscriptions) {
-      try {
-        await verifyAndSaveEmail(chatId, text, bot);
-      } catch (error) {
-        console.error(`Error verifying email for ${chatId}:`, error);
-      }
-      return;
-    }
+    userFetchingStatus[chatId] = true;
 
-    if (!userFetchingStatus[chatId]) {
-      userFetchingStatus[chatId] = true;
+    try {
       await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
+      const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
 
-      try {
-        const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
-        userFetchingStatus[chatId] = false;
-
-        emailSubscriptions = DiamondBlackEmails;
-        await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
-      } catch (err) {
-        userFetchingStatus[chatId] = false;
-        await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiendome.');
-      }
-    } else {
-      await bot.sendMessage(chatId, 'Ya se han obtenido los correos con membresía "DiamondBlack". Escribe el correo con el que compraste en Sharpods.');
+      userFetchingStatus[chatId] = false;
+      emailSubscriptions = DiamondBlackEmails;
+      await verifyAndSaveEmail(chatId, text, bot);
+    } catch (err) {
+      userFetchingStatus[chatId] = false;
+      console.error(`Error fetching emails for chatId ${chatId}:`, err);
+      await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiéndome.');
     }
   });
 };
