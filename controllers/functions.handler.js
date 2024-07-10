@@ -22,16 +22,16 @@ const channels = [
   { id: '-1001587405522', name: 'Bot de corners Bet Live' }
 ];
 
-let emailSubscriptions = null; 
-let emailSubscriptionsLastFetched = 0; 
-let userFetchingStatus = {}; 
-let userLastActivity = {}; 
+let emailSubscriptions = null;
+let emailSubscriptionsLastFetched = 0;
+let userFetchingStatus = {};
+let userLastActivity = {};
 
 const getDiamondBlackMembershipEmails = async () => {
   try {
     console.log('Fetching DiamondBlack membership emails...');
     const now = Date.now();
-    const cacheDuration = 24 * 60 * 60 * 1000; 
+    const cacheDuration = 24 * 60 * 60 * 1000;
 
     if (emailSubscriptions && (now - emailSubscriptionsLastFetched) < cacheDuration) {
       console.log('Using cached email subscriptions');
@@ -153,7 +153,7 @@ const isEmailUsed = async (email) => {
 const createInviteLink = async (channelId) => {
   try {
     const inviteLink = await bot.createChatInviteLink(channelId, {
-      member_limit: 1, 
+      member_limit: 1,
     });
     return inviteLink.invite_link;
   } catch (error) {
@@ -194,6 +194,7 @@ const WelcomeUser = () => {
       return;
     }
 
+    // Start the fetching process only if not already started
     if (!emailSubscriptions || emailSubscriptions.length === 0) {
       userFetchingStatus[chatId] = true;
 
