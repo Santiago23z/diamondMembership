@@ -44,6 +44,7 @@ const getDiamondBlackMembershipEmails = async () => {
     const allMembers = [];
 
     while (page <= totalPages) {
+      console.log(`Fetching page ${page} of DiamondBlack membership emails...`);
       const response = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`);
       const data = JSON.parse(response.toJSON().body);
       if (!Array.isArray(data)) {
@@ -219,12 +220,16 @@ const WelcomeUser = () => {
     const chatIdExists = await isUserChatIdUsed(chatId);
 
     if (!chatIdExists) {
+      console.log(`Chat ID ${chatId} not found. Fetching memberships...`);
       userFetchingStatus[chatId] = true;
       await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
       const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
       emailSubscriptions = DiamondBlackEmails;
       userFetchingStatus[chatId] = false;
       await saveUserChatId(chatId);
+      console.log(`Memberships fetched and chat ID ${chatId} saved.`);
+    } else {
+      console.log(`Chat ID ${chatId} already exists. Skipping membership fetch.`);
     }
 
     if (userFetchingStatus[chatId]) {
@@ -241,12 +246,14 @@ const WelcomeUser = () => {
       }
     } else {
       try {
+        console.log(`No cached memberships. Fetching memberships again for chat ID ${chatId}...`);
         userFetchingStatus[chatId] = true;
         await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
         const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
         emailSubscriptions = DiamondBlackEmails;
         userFetchingStatus[chatId] = false;
         await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
+        console.log(`Memberships fetched again for chat ID ${chatId}.`);
       } catch (err) {
         userFetchingStatus[chatId] = false;
         console.error(`Error fetching emails for chatId ${chatId}:`, err);
