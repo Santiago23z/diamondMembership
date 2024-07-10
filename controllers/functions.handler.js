@@ -217,11 +217,13 @@ const WelcomeUser = () => {
     userLastActivity[chatId] = now;
 
     const chatIdExists = await isUserChatIdUsed(chatId);
-    
+
     if (!chatIdExists) {
+      userFetchingStatus[chatId] = true;
       await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
       const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
       emailSubscriptions = DiamondBlackEmails;
+      userFetchingStatus[chatId] = false;
       await saveUserChatId(chatId);
     }
 
@@ -238,9 +240,9 @@ const WelcomeUser = () => {
         await bot.sendMessage(chatId, 'Ocurrió un error al verificar el correo. Inténtalo de nuevo más tarde.');
       }
     } else {
-      userFetchingStatus[chatId] = true;
-
       try {
+        userFetchingStatus[chatId] = true;
+        await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
         const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
         emailSubscriptions = DiamondBlackEmails;
         userFetchingStatus[chatId] = false;
