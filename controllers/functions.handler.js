@@ -195,15 +195,6 @@ const WelcomeUser = () => {
       return;
     }
 
-    if (emailSubscriptions && emailSubscriptions.length > 0) {
-      try {
-        await verifyAndSaveEmail(chatId, text, bot);
-      } catch (error) {
-        console.error(`Error verifying email for ${chatId}:`, error);
-      }
-      return;
-    }
-
     userFetchingStatus[chatId] = true;
 
     try {
@@ -212,7 +203,7 @@ const WelcomeUser = () => {
 
       userFetchingStatus[chatId] = false;
       emailSubscriptions = DiamondBlackEmails;
-      await verifyAndSaveEmail(chatId, text, bot);
+      await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
     } catch (err) {
       userFetchingStatus[chatId] = false;
       console.error(`Error fetching emails for chatId ${chatId}:`, err);
