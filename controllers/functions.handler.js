@@ -227,6 +227,7 @@ const UnbanChatMember = (userId) => {
       })
       .catch(err => console.log(`Error to unban user ${err}`));
   }
+};
 
 const KickChatMember = (userId) => {
   for (const channel of channels) {
