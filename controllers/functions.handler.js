@@ -52,7 +52,9 @@ const getDiamondBlackMembershipEmails = async () => {
 
       if (response.headers['x-wp-totalpages']) {
         totalPages = parseInt(response.headers['x-wp-totalpages'], 10);
+        console.log(`Total pages: ${totalPages}`);
       }
+      console.log(`Page ${page} fetched, members: ${data.length}`);
       page++;
     }
 
