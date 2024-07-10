@@ -100,8 +100,11 @@ const getDiamondBlackMembershipEmails = async () => {
 
 const verifyAndSaveEmail = async (chatId, email, bot) => {
   try {
-    if (await isEmailUsed(email)) {
-      await bot.sendMessage(chatId, `El correo ${email} ya ha sido utilizado.`);
+    const lowerCaseEmail = email.toLowerCase();
+    console.log('Verifying email:', lowerCaseEmail);
+
+    if (await isEmailUsed(lowerCaseEmail)) {
+      await bot.sendMessage(chatId, `El correo ${lowerCaseEmail} ya ha sido utilizado.`);
       return;
     }
 
@@ -111,8 +114,8 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
     }
 
     console.log('Lista de correos obtenida:', emailSubscriptions);
-    const hasDiamondBlackMembership = emailSubscriptions.includes(email.toLowerCase());
-    console.log('Correo verificado:', email.toLowerCase(), 'Resultado:', hasDiamondBlackMembership);
+    const hasDiamondBlackMembership = emailSubscriptions.includes(lowerCaseEmail);
+    console.log('Correo verificado:', lowerCaseEmail, 'Resultado:', hasDiamondBlackMembership);
 
     if (!hasDiamondBlackMembership) {
       await bot.sendMessage(chatId, 'No tienes una suscripción actualmente activa con la membresía "DiamondBlack".');
@@ -134,7 +137,7 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
     const message = '¡Ey parcerooo! Te doy una bienvenida a nuestro club premium: ¡Sharpods Club! Espero que juntos podamos alcanzar grandes victorias. ¡Mucha, mucha suerte, papi!';
     await bot.sendMessage(chatId, message, options);
 
-    await saveUsedEmail(email);
+    await saveUsedEmail(lowerCaseEmail);
   } catch (error) {
     console.error(`Error verifying email for ${chatId}:`, error);
     await bot.sendMessage(chatId, 'Ocurrió un error al verificar el correo. Inténtalo de nuevo más tarde.');
@@ -204,7 +207,6 @@ const WelcomeUser = () => {
       return;
     }
 
-    // Check if the email subscriptions have been fetched
     if (emailSubscriptions && emailSubscriptions.length > 0) {
       try {
         await verifyAndSaveEmail(chatId, text, bot);
