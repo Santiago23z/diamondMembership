@@ -105,6 +105,11 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
       return;
     }
 
+    if (!emailSubscriptions) {
+      await bot.sendMessage(chatId, 'Las suscripciones aún no se han obtenido. Por favor espera un momento y vuelve a intentarlo.');
+      return;
+    }
+
     console.log('Lista de correos obtenida:', emailSubscriptions);
     const hasDiamondBlackMembership = emailSubscriptions.includes(email.toLowerCase());
     console.log('Correo verificado:', email.toLowerCase(), 'Resultado:', hasDiamondBlackMembership);
