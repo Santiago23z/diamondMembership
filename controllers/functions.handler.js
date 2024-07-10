@@ -101,7 +101,9 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
     }
 
     const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
+    console.log('Lista de correos obtenida:', DiamondBlackEmails);
     const hasDiamondBlackMembership = DiamondBlackEmails.includes(email.toLowerCase());
+    console.log('Correo verificado:', email.toLowerCase(), 'Resultado:', hasDiamondBlackMembership);
 
     if (!hasDiamondBlackMembership) {
       await bot.sendMessage(chatId, 'No tienes una suscripción actualmente activa con la membresía "DiamondBlack".');
