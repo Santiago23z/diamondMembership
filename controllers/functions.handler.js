@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const WooCommerceAPI = require('woocommerce-api');
 const mongoose = require('mongoose');
 const UsedEmail = require('../models/UsedEmail');
-const UserChat = require('../models/UsedChat'); // Modelo para guardar chat ids
+const UserChat = require('../models/UserChat'); // Modelo para guardar chat ids
 
 const token = "6525885535:AAFBxlJUnXVfOCsM0WCS9Af5djotpbk3evs";
 const bot = new TelegramBot(token, { polling: true });
