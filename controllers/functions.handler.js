@@ -31,7 +31,7 @@ const getDiamondBlackMembershipEmails = async () => {
   try {
     console.log('Fetching DiamondBlack membership emails...');
     const now = Date.now();
-    const cacheDuration = 24 * 60 * 60 * 1000;
+    const cacheDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
     if (emailSubscriptions && (now - emailSubscriptionsLastFetched) < cacheDuration) {
       console.log('Using cached email subscriptions');
@@ -39,8 +39,7 @@ const getDiamondBlackMembershipEmails = async () => {
     }
 
     const initialResponse = await WooCommerce.getAsync("memberships/members?plan=diamond&page=1");
-    const initialResponseBody = initialResponse.toJSON().body;
-    const initialData = JSON.parse(initialResponseBody);
+    const initialData = JSON.parse(initialResponse.toJSON().body);
 
     if (!Array.isArray(initialData)) {
       throw new Error('Unexpected response format');
@@ -57,27 +56,17 @@ const getDiamondBlackMembershipEmails = async () => {
     }
 
     const pageResponses = await Promise.all(pagePromises);
-    const allMembers = pageResponses.flatMap(pageResponse => {
-      const pageBody = pageResponse.toJSON().body;
-      return JSON.parse(pageBody);
-    });
+    const allMembers = pageResponses.flatMap(pageResponse => JSON.parse(pageResponse.toJSON().body));
 
     console.log('Total members fetched:', allMembers.length);
 
     const DiamondBlackEmails = await Promise.all(allMembers.map(async (member) => {
       try {
         const customerResponse = await WooCommerce.getAsync(`customers/${member.customer_id}`);
-        const customerResponseBody = customerResponse.toJSON().body;
-
-        if (customerResponse.headers['content-type'].includes('application/json')) {
-          const customerData = JSON.parse(customerResponseBody);
-          if (member.status === 'active') {
-            console.log(`Active member found: ${customerData.email.toLowerCase()}`);
-            return customerData.email.toLowerCase();
-          }
-        } else {
-          console.warn(`Unexpected content type for member ${member.customer_id}`);
-          return null;
+        const customerData = JSON.parse(customerResponse.toJSON().body);
+        if (member.status === 'active') {
+          console.log(`Active member found: ${customerData.email.toLowerCase()}`);
+          return customerData.email.toLowerCase();
         }
       } catch (error) {
         console.error(`Error fetching customer data for member ${member.customer_id}:`, error);
