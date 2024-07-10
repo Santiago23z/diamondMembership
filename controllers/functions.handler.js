@@ -24,7 +24,7 @@ const channels = [
 
 let emailSubscriptions = null; 
 let emailSubscriptionsLastFetched = 0; 
-let userFetchingStatus = {};
+let userFetchingStatus = {}; 
 let userLastActivity = {}; 
 
 const getDiamondBlackMembershipEmails = async () => {
@@ -227,7 +227,6 @@ const UnbanChatMember = (userId) => {
       })
       .catch(err => console.log(`Error to unban user ${err}`));
   }
-};
 
 const KickChatMember = (userId) => {
   for (const channel of channels) {
