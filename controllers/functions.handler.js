@@ -38,25 +38,23 @@ const getDiamondBlackMembershipEmails = async () => {
       return emailSubscriptions;
     }
 
-    const initialResponse = await WooCommerce.getAsync("memberships/members?plan=diamond&page=1");
-    const initialData = JSON.parse(initialResponse.toJSON().body);
-
-    if (!Array.isArray(initialData)) {
-      throw new Error('Unexpected response format');
-    }
-
+    let page = 1;
     let totalPages = 1;
-    if (initialResponse.headers['x-wp-totalpages']) {
-      totalPages = parseInt(initialResponse.headers['x-wp-totalpages']);
-    }
+    const allMembers = [];
 
-    const pagePromises = [];
-    for (let page = 1; page <= totalPages; page++) {
-      pagePromises.push(WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`));
-    }
+    while (page <= totalPages) {
+      const response = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`);
+      const data = JSON.parse(response.toJSON().body);
+      if (!Array.isArray(data)) {
+        throw new Error('Unexpected response format');
+      }
+      allMembers.push(...data);
 
-    const pageResponses = await Promise.all(pagePromises);
-    const allMembers = pageResponses.flatMap(pageResponse => JSON.parse(pageResponse.toJSON().body));
+      if (response.headers['x-wp-totalpages']) {
+        totalPages = parseInt(response.headers['x-wp-totalpages'], 10);
+      }
+      page++;
+    }
 
     console.log('Total members fetched:', allMembers.length);
 
