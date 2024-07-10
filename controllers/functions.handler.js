@@ -170,6 +170,7 @@ const saveUserChatId = async (chatId) => {
   try {
     const userChat = new UserChat({ chatId });
     await userChat.save();
+    console.log(`Chat ID ${chatId} saved.`);
   } catch (error) {
     console.error(`Error saving user chat id: ${error}`);
   }
@@ -188,6 +189,7 @@ const isUserChatIdUsed = async (chatId) => {
 const resetUserState = async (chatId) => {
   delete userFetchingStatus[chatId];
   delete userLastActivity[chatId];
+  console.log(`User state reset for chat ID ${chatId}.`);
 };
 
 const WelcomeUser = () => {
