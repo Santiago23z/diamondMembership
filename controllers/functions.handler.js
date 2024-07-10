@@ -70,9 +70,11 @@ const getDiamondBlackMembershipEmails = async () => {
         if (customerResponse.headers['content-type'].includes('application/json')) {
           const customerData = JSON.parse(customerResponseBody);
           if (member.status === 'active') {
+            console.log(`Active member found: ${customerData.email.toLowerCase()}`);
             return customerData.email.toLowerCase();
           }
         } else {
+          console.warn(`Unexpected content type for member ${member.customer_id}`);
           return null;
         }
       } catch (error) {
@@ -83,6 +85,7 @@ const getDiamondBlackMembershipEmails = async () => {
 
     const validEmails = DiamondBlackEmails.filter(email => email !== null);
 
+    console.log('Total active emails found:', validEmails.length);
     emailSubscriptions = validEmails;
     emailSubscriptionsLastFetched = now;
 
