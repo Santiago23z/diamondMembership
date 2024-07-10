@@ -204,8 +204,15 @@ const WelcomeUser = () => {
       return;
     }
 
-    // Start the fetching process only if not already started
-    if (!emailSubscriptions || emailSubscriptions.length === 0) {
+    // Check if the email subscriptions have been fetched
+    if (emailSubscriptions && emailSubscriptions.length > 0) {
+      try {
+        await verifyAndSaveEmail(chatId, text, bot);
+      } catch (error) {
+        console.error(`Error verifying email for ${chatId}:`, error);
+        await bot.sendMessage(chatId, 'Ocurrió un error al verificar el correo. Inténtalo de nuevo más tarde.');
+      }
+    } else {
       userFetchingStatus[chatId] = true;
 
       try {
@@ -219,13 +226,6 @@ const WelcomeUser = () => {
         userFetchingStatus[chatId] = false;
         console.error(`Error fetching emails for chatId ${chatId}:`, err);
         await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiéndome.');
-      }
-    } else {
-      try {
-        await verifyAndSaveEmail(chatId, text, bot);
-      } catch (error) {
-        console.error(`Error verifying email for ${chatId}:`, error);
-        await bot.sendMessage(chatId, 'Ocurrió un error al verificar el correo. Inténtalo de nuevo más tarde.');
       }
     }
   });
