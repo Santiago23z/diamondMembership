@@ -62,6 +62,8 @@ const getDiamondBlackMembershipEmails = async () => {
       return JSON.parse(pageBody);
     });
 
+    console.log('Total members fetched:', allMembers.length);
+
     const DiamondBlackEmails = await Promise.all(allMembers.map(async (member) => {
       try {
         const customerResponse = await WooCommerce.getAsync(`customers/${member.customer_id}`);
