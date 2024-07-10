@@ -2,6 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const WooCommerceAPI = require('woocommerce-api');
 const mongoose = require('mongoose');
 const UsedEmail = require('../models/UsedEmail');
+const UserChat = require('../models/UserChat'); // Nuevo modelo para guardar chat ids
 
 const token = "6525885535:AAFBxlJUnXVfOCsM0WCS9Af5djotpbk3evs";
 const bot = new TelegramBot(token, { polling: true });
@@ -164,6 +165,30 @@ const createInviteLink = async (channelId) => {
   }
 };
 
+const saveUserChatId = async (chatId) => {
+  try {
+    const userChat = new UserChat({ chatId });
+    await userChat.save();
+  } catch (error) {
+    console.error(`Error saving user chat id: ${error}`);
+  }
+};
+
+const isUserChatIdUsed = async (chatId) => {
+  try {
+    const chatIdDoc = await UserChat.findOne({ chatId });
+    return !!chatIdDoc;
+  } catch (error) {
+    console.error(`Error finding user chat id: ${error}`);
+    return false;
+  }
+};
+
+const resetUserState = async (chatId) => {
+  delete userFetchingStatus[chatId];
+  delete userLastActivity[chatId];
+};
+
 const WelcomeUser = () => {
   bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
@@ -190,6 +215,12 @@ const WelcomeUser = () => {
     }
 
     userLastActivity[chatId] = now;
+
+    if (await isUserChatIdUsed(chatId)) {
+      await resetUserState(chatId);
+    } else {
+      await saveUserChatId(chatId);
+    }
 
     if (userFetchingStatus[chatId]) {
       await bot.sendMessage(chatId, 'Por favor espera a que se obtengan las suscripciones activas.');
