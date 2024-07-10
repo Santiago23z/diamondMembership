@@ -2,7 +2,7 @@ const TelegramBot = require('node-telegram-bot-api');
 const WooCommerceAPI = require('woocommerce-api');
 const mongoose = require('mongoose');
 const UsedEmail = require('../models/UsedEmail');
-const UserChat = require('../models/UsedChat'); // Nuevo modelo para guardar chat ids
+const UserChat = require('../models/UserChat'); // Modelo para guardar chat ids
 
 const token = "6525885535:AAFBxlJUnXVfOCsM0WCS9Af5djotpbk3evs";
 const bot = new TelegramBot(token, { polling: true });
@@ -216,9 +216,12 @@ const WelcomeUser = () => {
 
     userLastActivity[chatId] = now;
 
-    if (await isUserChatIdUsed(chatId)) {
-      await resetUserState(chatId);
-    } else {
+    const chatIdExists = await isUserChatIdUsed(chatId);
+    
+    if (!chatIdExists) {
+      await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
+      const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
+      emailSubscriptions = DiamondBlackEmails;
       await saveUserChatId(chatId);
     }
 
@@ -238,9 +241,7 @@ const WelcomeUser = () => {
       userFetchingStatus[chatId] = true;
 
       try {
-        await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
         const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
-
         emailSubscriptions = DiamondBlackEmails;
         userFetchingStatus[chatId] = false;
         await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
