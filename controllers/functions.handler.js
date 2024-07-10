@@ -100,9 +100,8 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
       return;
     }
 
-    const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
-    console.log('Lista de correos obtenida:', DiamondBlackEmails);
-    const hasDiamondBlackMembership = DiamondBlackEmails.includes(email.toLowerCase());
+    console.log('Lista de correos obtenida:', emailSubscriptions);
+    const hasDiamondBlackMembership = emailSubscriptions.includes(email.toLowerCase());
     console.log('Correo verificado:', email.toLowerCase(), 'Resultado:', hasDiamondBlackMembership);
 
     if (!hasDiamondBlackMembership) {
@@ -195,19 +194,28 @@ const WelcomeUser = () => {
       return;
     }
 
-    userFetchingStatus[chatId] = true;
+    if (!emailSubscriptions || emailSubscriptions.length === 0) {
+      userFetchingStatus[chatId] = true;
 
-    try {
-      await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
-      const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
+      try {
+        await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
+        const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
 
-      userFetchingStatus[chatId] = false;
-      emailSubscriptions = DiamondBlackEmails;
-      await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
-    } catch (err) {
-      userFetchingStatus[chatId] = false;
-      console.error(`Error fetching emails for chatId ${chatId}:`, err);
-      await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiéndome.');
+        emailSubscriptions = DiamondBlackEmails;
+        userFetchingStatus[chatId] = false;
+        await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
+      } catch (err) {
+        userFetchingStatus[chatId] = false;
+        console.error(`Error fetching emails for chatId ${chatId}:`, err);
+        await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiéndome.');
+      }
+    } else {
+      try {
+        await verifyAndSaveEmail(chatId, text, bot);
+      } catch (error) {
+        console.error(`Error verifying email for ${chatId}:`, error);
+        await bot.sendMessage(chatId, 'Ocurrió un error al verificar el correo. Inténtalo de nuevo más tarde.');
+      }
     }
   });
 };
