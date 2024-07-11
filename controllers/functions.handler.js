@@ -2,7 +2,6 @@ const TelegramBot = require('node-telegram-bot-api');
 const WooCommerceAPI = require('woocommerce-api');
 const mongoose = require('mongoose');
 const UsedEmail = require('../models/UsedEmail');
-const UserChat = require('../models/UsedChat'); // Modelo para guardar chat ids
 
 const token = "6525885535:AAFBxlJUnXVfOCsM0WCS9Af5djotpbk3evs";
 const bot = new TelegramBot(token, { polling: true });
@@ -23,93 +22,92 @@ const channels = [
   { id: '-1001587405522', name: 'Bot de corners Bet Live' }
 ];
 
-let emailSubscriptions = null;
-let emailSubscriptionsLastFetched = 0;
-let userFetchingStatus = {};
-let userLastActivity = {};
+let userState = {}; 
 
-const getDiamondBlackMembershipEmails = async () => {
+const getDiamondMemberhipEmails = async (chatId) => {
   try {
-    console.log('Fetching DiamondBlack membership emails...');
+    console.log('Fetching Diamond membership emails for chat', chatId);
     const now = Date.now();
-    const cacheDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+    const cacheDuration = 24 * 60 * 60 * 1000;
 
-    if (emailSubscriptions && (now - emailSubscriptionsLastFetched) < cacheDuration) {
-      console.log('Using cached email subscriptions');
-      return emailSubscriptions;
+    if (userState[chatId] && userState[chatId].emailSubscriptions && (now - userState[chatId].emailSubscriptionsLastFetched) < cacheDuration) {
+      console.log('Using cached email subscriptions for chat', chatId);
+      return userState[chatId].emailSubscriptions;
     }
 
     let page = 1;
+    let DiamondMember = [];
     let totalPages = 1;
-    const allMembers = [];
 
-    while (page <= totalPages) {
-      console.log(`Fetching page ${page} of DiamondBlack membership emails...`);
-      const response = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`);
-      const data = JSON.parse(response.toJSON().body);
-      if (!Array.isArray(data)) {
-        throw new Error('Unexpected response format');
-      }
-      allMembers.push(...data);
+    const response = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`);
+    const responseBody = response.toJSON().body;
+    const responseData = JSON.parse(responseBody);
+    DiamondMember = responseData;
 
-      if (response.headers['x-wp-totalpages']) {
-        totalPages = parseInt(response.headers['x-wp-totalpages'], 10);
-        console.log(`Total pages: ${totalPages}`);
-      }
-      console.log(`Page ${page} fetched, members: ${data.length}`);
-      page++;
+    if (response.headers['x-wp-totalpages']) {
+      totalPages = parseInt(response.headers['x-wp-totalpages']);
     }
 
-    console.log('Total members fetched:', allMembers.length);
+    while (page < totalPages) {
+      page++;
+      const pageResponse = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`);
+      const pageBody = pageResponse.toJSON().body;
+      const pageData = JSON.parse(pageBody);
+      DiamondMember = DiamondMember.concat(pageData);
+    }
 
-    const DiamondBlackEmails = await Promise.all(allMembers.map(async (member) => {
+    const DiamondEmails = await Promise.all(DiamondMember.map(async (member) => {
       try {
         const customerResponse = await WooCommerce.getAsync(`customers/${member.customer_id}`);
-        const customerData = JSON.parse(customerResponse.toJSON().body);
-        if (member.status === 'active') {
-          console.log(`Active member found: ${customerData.email.toLowerCase()}`);
-          return customerData.email.toLowerCase();
+        const customerResponseBody = customerResponse.toJSON().body;
+
+        if (customerResponse.headers['content-type'].includes('application/json')) {
+          const customerData = JSON.parse(customerResponseBody);
+          if (member.status === 'active') {
+            return customerData.email.toLowerCase();
+          }
+        } else {
+          console.error(`Invalid response for customer ${member.customer_id}:`, customerResponseBody);
+          return null;
         }
       } catch (error) {
-        console.error(`Error fetching customer data for member ${member.customer_id}:`, error);
+        console.error(`Error al obtener detalles del cliente para el miembro ${member.id}:`, error);
         return null;
       }
     }));
 
-    const validEmails = DiamondBlackEmails.filter(email => email !== null);
+    const validEmails = DiamondEmails.filter(email => email !== null);
 
-    console.log('Total active emails found:', validEmails.length);
-    emailSubscriptions = validEmails;
-    emailSubscriptionsLastFetched = now;
+    if (!userState[chatId]) {
+      userState[chatId] = {};
+    }
+
+    userState[chatId].emailSubscriptions = validEmails;
+    userState[chatId].emailSubscriptionsLastFetched = now;
+
+    console.log('Total de correos electrónicos con membresía "Diamond" para chat', chatId, ':', validEmails.length);
+    console.log('Correos con membresía "Diamond":', JSON.stringify(validEmails, null, 2));
 
     return validEmails;
   } catch (error) {
-    console.error('Error al obtener los correos de membresía DiamondBlack:', error);
+    console.error('Error al obtener los correos de membresía Diamond:', error);
     return [];
   }
 };
 
 const verifyAndSaveEmail = async (chatId, email, bot) => {
   try {
-    const lowerCaseEmail = email.toLowerCase();
-    console.log('Verifying email:', lowerCaseEmail);
-
-    if (await isEmailUsed(lowerCaseEmail)) {
-      await bot.sendMessage(chatId, `El correo ${lowerCaseEmail} ya ha sido utilizado.`);
+    console.log(`Verifying email ${email} for chat ${chatId}`);
+    if (await isEmailUsed(email)) {
+      await bot.sendMessage(chatId, `El correo ${email} ya ha sido utilizado.`);
       return;
     }
 
-    if (!emailSubscriptions) {
-      await bot.sendMessage(chatId, 'Las suscripciones aún no se han obtenido. Por favor espera un momento y vuelve a intentarlo.');
-      return;
-    }
+    const DiamondEmails = await getDiamondMemberhipEmails(chatId);
+    const hasDiamondMemberhip = DiamondEmails.includes(email.toLowerCase());
 
-    console.log('Lista de correos obtenida:', emailSubscriptions);
-    const hasDiamondBlackMembership = emailSubscriptions.includes(lowerCaseEmail);
-    console.log('Correo verificado:', lowerCaseEmail, 'Resultado:', hasDiamondBlackMembership);
-
-    if (!hasDiamondBlackMembership) {
-      await bot.sendMessage(chatId, 'No tienes una suscripción actualmente activa con la membresía "DiamondBlack".');
+    if (!hasDiamondMemberhip) {
+      await bot.sendMessage(chatId, `No tienes una suscripción actualmente activa con la membresía "Diamond".`);
       return;
     }
 
@@ -125,10 +123,10 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
     const options = {
       reply_markup: JSON.stringify(buttonsLinks),
     };
-    const message = '¡Ey parcerooo! Te doy una bienvenida a nuestro club premium: ¡Sharpods Club! Espero que juntos podamos alcanzar grandes victorias. ¡Mucha, mucha suerte, papi!';
+    const message = `¡Ey parcerooo! Te doy una bienvenida a nuestro club premium: ¡Sharpods Club! Espero que juntos podamos alcanzar grandes victorias. ¡Mucha, mucha suerte, papi!`;
     await bot.sendMessage(chatId, message, options);
 
-    await saveUsedEmail(lowerCaseEmail);
+    await saveUsedEmail(email);
   } catch (error) {
     console.error(`Error verifying email for ${chatId}:`, error);
     await bot.sendMessage(chatId, 'Ocurrió un error al verificar el correo. Inténtalo de nuevo más tarde.');
@@ -137,6 +135,7 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
 
 const saveUsedEmail = async (email) => {
   try {
+    console.log(`Saving used email: ${email}`);
     const usedEmail = new UsedEmail({ email });
     await usedEmail.save();
   } catch (error) {
@@ -146,6 +145,7 @@ const saveUsedEmail = async (email) => {
 
 const isEmailUsed = async (email) => {
   try {
+    console.log(`Checking if email is used: ${email}`);
     const emailDoc = await UsedEmail.findOne({ email });
     return !!emailDoc;
   } catch (error) {
@@ -156,8 +156,9 @@ const isEmailUsed = async (email) => {
 
 const createInviteLink = async (channelId) => {
   try {
+    console.log(`Creating invite link for channel: ${channelId}`);
     const inviteLink = await bot.createChatInviteLink(channelId, {
-      member_limit: 1,
+      member_limit: 1, // Límite de un solo uso
     });
     return inviteLink.invite_link;
   } catch (error) {
@@ -166,35 +167,16 @@ const createInviteLink = async (channelId) => {
   }
 };
 
-const saveUserChatId = async (chatId) => {
-  try {
-    const userChat = new UserChat({ chatId });
-    await userChat.save();
-    console.log(`Chat ID ${chatId} saved.`);
-  } catch (error) {
-    console.error(`Error saving user chat id: ${error}`);
-  }
-};
-
-const isUserChatIdUsed = async (chatId) => {
-  try {
-    const chatIdDoc = await UserChat.findOne({ chatId });
-    return !!chatIdDoc;
-  } catch (error) {
-    console.error(`Error finding user chat id: ${error}`);
-    return false;
-  }
-};
-
-const resetUserState = async (chatId) => {
-  delete userFetchingStatus[chatId];
-  delete userLastActivity[chatId];
-  console.log(`User state reset for chat ID ${chatId}.`);
-};
-
 const WelcomeUser = () => {
   bot.on('message', async (msg) => {
     const chatId = msg.chat.id;
+
+    if (!userState[chatId]) {
+      userState[chatId] = {
+        fetchingStatus: false,
+        lastActivity: 0
+      };
+    }
 
     if (msg.chat.type !== 'private') {
       console.log('Mensaje ignorado de grupo o canal');
@@ -209,80 +191,60 @@ const WelcomeUser = () => {
     const text = msg.text.trim().toLowerCase();
 
     const now = Date.now();
-    const lastActivity = userLastActivity[chatId] || 0;
+    const lastActivity = userState[chatId].lastActivity;
     const inactivityTime = now - lastActivity;
     const maxInactivityTime = 2 * 60 * 1000; // 2 minutos en milisegundos
 
-    if (inactivityTime > maxInactivityTime) {
-      userFetchingStatus[chatId] = false;
-    }
+    userState[chatId].lastActivity = now;
 
-    userLastActivity[chatId] = now;
-
-    const chatIdExists = await isUserChatIdUsed(chatId);
-
-    if (!chatIdExists) {
-      console.log(`Chat ID ${chatId} not found. Fetching memberships...`);
-      userFetchingStatus[chatId] = true;
-      await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
-      const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
-      emailSubscriptions = DiamondBlackEmails;
-      userFetchingStatus[chatId] = false;
-      await saveUserChatId(chatId);
-      console.log(`Memberships fetched and chat ID ${chatId} saved.`);
-    } else {
-      console.log(`Chat ID ${chatId} already exists. Skipping membership fetch.`);
-    }
-
-    if (userFetchingStatus[chatId]) {
+    if (userState[chatId].fetchingStatus) {
       await bot.sendMessage(chatId, 'Por favor espera a que se obtengan las suscripciones activas.');
       return;
     }
 
-    if (emailSubscriptions && emailSubscriptions.length > 0) {
+    if (userState[chatId].emailSubscriptions && (inactivityTime < maxInactivityTime)) {
       try {
         await verifyAndSaveEmail(chatId, text, bot);
       } catch (error) {
         console.error(`Error verifying email for ${chatId}:`, error);
-        await bot.sendMessage(chatId, 'Ocurrió un error al verificar el correo. Inténtalo de nuevo más tarde.');
+      }
+      return;
+    }
+
+    if (!userState[chatId].fetchingStatus) {
+      userState[chatId].fetchingStatus = true;
+      await bot.sendMessage(chatId, 'Obteniendo correos con membresía "Diamond", por favor espera. Podría tardar al menos un minuto.');
+
+      try {
+        const DiamondEmails = await getDiamondMemberhipEmails(chatId);
+        userState[chatId].fetchingStatus = false;
+
+        userState[chatId].emailSubscriptions = DiamondEmails;
+        await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
+      } catch (err) {
+        userState[chatId].fetchingStatus = false;
+        await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "Diamond". Vuelve a intentar escribiéndome.');
       }
     } else {
-      try {
-        console.log(`No cached memberships. Fetching memberships again for chat ID ${chatId}...`);
-        userFetchingStatus[chatId] = true;
-        await bot.sendMessage(chatId, 'Obteniendo correos con membresía "DiamondBlack", por favor espera. Podría tardar al menos un minuto.');
-        const DiamondBlackEmails = await getDiamondBlackMembershipEmails();
-        emailSubscriptions = DiamondBlackEmails;
-        userFetchingStatus[chatId] = false;
-        await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
-        console.log(`Memberships fetched again for chat ID ${chatId}.`);
-      } catch (err) {
-        userFetchingStatus[chatId] = false;
-        console.error(`Error fetching emails for chatId ${chatId}:`, err);
-        await bot.sendMessage(chatId, 'Ocurrió un error al obtener los correos con membresía "DiamondBlack". Vuelve a intentar escribiéndome.');
-      }
+      await bot.sendMessage(chatId, 'Ya se han obtenido los correos con membresía "Diamond". Escribe el correo con el que compraste en Sharpods.');
     }
   });
 };
 
 const UnbanChatMember = (userId) => {
-  for (const channel of channels) {
-    bot.unbanChatMember(channel.id, userId)
-      .then(() => {
-        console.log(`User unbanned from the channel ${channel.name}`);
-      })
-      .catch(err => console.log(`Error to unban user ${err}`));
-  }
+  bot.unbanChatMember(channel.id, userId)
+    .then(() => {
+      console.log(`User unbanned from the channel ${channel.name}`);
+    })
+    .catch(err => console.log(`Error to unban user ${err}`));
 };
 
 const KickChatMember = (userId) => {
-  for (const channel of channels) {
-    bot.banChatMember(channel.id, userId)
-      .then(() => {
-        console.log(`User kicked from the channel ${channel.name}`);
-      })
-      .catch(err => console.log(`Error to kick user ${err}`));
-  }
+  bot.banChatMember(channel.id, userId)
+    .then(() => {
+      console.log(`User kicked from the channel ${channel.name}`);
+    })
+    .catch(err => console.log(`Error to kick user ${err}`));
 };
 
 module.exports = {
