@@ -22,7 +22,7 @@ const channels = [
   { id: '-1001587405522', name: 'Bot de corners Bet Live' }
 ];
 
-let userState = {}; 
+let userState = {};
 
 const getDiamondMemberhipEmails = async (chatId) => {
   try {
@@ -39,13 +39,13 @@ const getDiamondMemberhipEmails = async (chatId) => {
     let DiamondMember = [];
     let totalPages = 1;
 
-    const response = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`);
-    const responseBody = response.toJSON().body;
-    const responseData = JSON.parse(responseBody);
-    DiamondMember = responseData;
+    const initialResponse = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`);
+    const initialResponseBody = initialResponse.toJSON().body;
+    const initialResponseData = JSON.parse(initialResponseBody);
+    DiamondMember = initialResponseData;
 
-    if (response.headers['x-wp-totalpages']) {
-      totalPages = parseInt(response.headers['x-wp-totalpages']);
+    if (initialResponse.headers['x-wp-totalpages']) {
+      totalPages = parseInt(initialResponse.headers['x-wp-totalpages']);
     }
 
     while (page < totalPages) {
