@@ -232,19 +232,23 @@ const WelcomeUser = () => {
 };
 
 const UnbanChatMember = (userId) => {
+  for (const channel of channels) {
   bot.unbanChatMember(channel.id, userId)
     .then(() => {
       console.log(`User unbanned from the channel ${channel.name}`);
     })
     .catch(err => console.log(`Error to unban user ${err}`));
+  }
 };
 
 const KickChatMember = (userId) => {
-  bot.banChatMember(channel.id, userId)
-    .then(() => {
-      console.log(`User kicked from the channel ${channel.name}`);
-    })
-    .catch(err => console.log(`Error to kick user ${err}`));
+  for (const channel of channels) {
+    bot.banChatMember(channel.id, userId)
+      .then(() => {
+        console.log(`User kicked from the channel ${channel.name}`);
+      })
+      .catch(err => console.log(`Error to kick user ${err}`));
+  }
 };
 
 module.exports = {
