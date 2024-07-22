@@ -24,7 +24,7 @@ const channels = [
 
 let userState = {};
 
-const getDiamondMemberhipEmails = async (chatId) => {
+const getDiamondMembershipEmails = async (chatId) => {
   try {
     console.log('Fetching Diamond membership emails for chat', chatId);
     const now = Date.now();
@@ -36,13 +36,13 @@ const getDiamondMemberhipEmails = async (chatId) => {
     }
 
     let page = 1;
-    let DiamondMember = [];
+    let diamondMembers = [];
     let totalPages = 1;
 
     const initialResponse = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`);
     const initialResponseBody = initialResponse.toJSON().body;
     const initialResponseData = JSON.parse(initialResponseBody);
-    DiamondMember = initialResponseData;
+    diamondMembers = initialResponseData;
 
     if (initialResponse.headers['x-wp-totalpages']) {
       totalPages = parseInt(initialResponse.headers['x-wp-totalpages']);
@@ -53,10 +53,10 @@ const getDiamondMemberhipEmails = async (chatId) => {
       const pageResponse = await WooCommerce.getAsync(`memberships/members?plan=diamond&page=${page}`);
       const pageBody = pageResponse.toJSON().body;
       const pageData = JSON.parse(pageBody);
-      DiamondMember = DiamondMember.concat(pageData);
+      diamondMembers = diamondMembers.concat(pageData);
     }
 
-    const DiamondEmails = await Promise.all(DiamondMember.map(async (member) => {
+    const diamondEmails = await Promise.all(diamondMembers.map(async (member) => {
       try {
         const customerResponse = await WooCommerce.getAsync(`customers/${member.customer_id}`);
         const customerResponseBody = customerResponse.toJSON().body;
@@ -76,7 +76,7 @@ const getDiamondMemberhipEmails = async (chatId) => {
       }
     }));
 
-    const validEmails = DiamondEmails.filter(email => email !== null);
+    const validEmails = diamondEmails.filter(email => email !== null);
 
     if (!userState[chatId]) {
       userState[chatId] = {};
@@ -103,10 +103,10 @@ const verifyAndSaveEmail = async (chatId, email, bot) => {
       return;
     }
 
-    const DiamondEmails = await getDiamondMemberhipEmails(chatId);
-    const hasDiamondMemberhip = DiamondEmails.includes(email.toLowerCase());
+    const diamondEmails = await getDiamondMembershipEmails(chatId);
+    const hasDiamondMembership = diamondEmails.includes(email.toLowerCase());
 
-    if (!hasDiamondMemberhip) {
+    if (!hasDiamondMembership) {
       await bot.sendMessage(chatId, `No tienes una suscripción actualmente activa con la membresía "Diamond".`);
       return;
     }
@@ -216,10 +216,10 @@ const WelcomeUser = () => {
       await bot.sendMessage(chatId, 'Obteniendo correos con membresía "Diamond", por favor espera. Podría tardar al menos un minuto.');
 
       try {
-        const DiamondEmails = await getDiamondMemberhipEmails(chatId);
+        const diamondEmails = await getDiamondMembershipEmails(chatId);
         userState[chatId].fetchingStatus = false;
 
-        userState[chatId].emailSubscriptions = DiamondEmails;
+        userState[chatId].emailSubscriptions = diamondEmails;
         await bot.sendMessage(chatId, 'Escribe el correo con el que compraste en Sharpods.');
       } catch (err) {
         userState[chatId].fetchingStatus = false;
